@@ -9,6 +9,7 @@ import tracemalloc
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import f1_score
 
+
 from sklearn.model_selection import KFold
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
@@ -16,13 +17,14 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.naive_bayes import GaussianNB
 
 
 from sklearn.decomposition import PCA
 from sklearn.decomposition import IncrementalPCA
-from sklearn.decomposition import NMF
 from sklearn.decomposition import FastICA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from imblearn.over_sampling import SMOTE
 
 
 # This is a dataset about iris flowers information and classification of its species
@@ -37,13 +39,10 @@ df_breast = pd.read_csv('datasets i could use/breast.csv')
 df_creditcard = pd.read_csv('datasets i could use/creditcard.csv')
 df_creditcard = df_creditcard.head(50000)
 
-
 class Analysis:
 
     def __init__(self, dataframe, technique, model='SVM'):
-
         self.prepare_data(dataframe)
-
         self.perform_analysis(technique, model)
 
     def prepare_data(self, dataframe):
@@ -63,18 +62,17 @@ class Analysis:
         for train_index, test_index in kf.split(self.X):
             self.split_data(train_index, test_index)
 
-
             if technique == 'PCA':
                 self.apply_pca()
             elif technique == 'IncPCA':
                 self.apply_ipca()
-            elif technique == 'NMF':
-                self.apply_nmf()
             elif technique == 'ICA':
                 self.apply_ica()
             elif technique == 'LDA':
                 self.apply_lda()
-
+            elif technique == 'SMOTE':
+                self.apply_smote()
+            
             self.apply_normalization()
 
             f1 = self.select_model_and_get_f1(model)
@@ -99,15 +97,6 @@ class Analysis:
         self.X_train = ipca.fit_transform(self.X_train)
         self.X_test = ipca.transform(self.X_test)
     
-    def apply_nmf(self):
-        try:
-            n_components = int(self.X_train.shape[1]/2)  # Choose the number of components
-            nmf_model = NMF(n_components=n_components, init='random', random_state=42)
-            self.X_train = nmf_model.fit_transform(self.X_train)
-            self.X_test = nmf_model.transform(self.X_test)
-        except:
-            pass
-
     def apply_ica(self):
         n_components = int(self.X_train.shape[1]/2)
         ica = FastICA(n_components=n_components, random_state=42)
@@ -120,19 +109,26 @@ class Analysis:
 
         self.X_test = lda.transform(self.X_test)
 
+    def apply_smote(self):
+        smote = SMOTE(random_state=42)
+        self.X_train, self.y_train = smote.fit_resample(self.X_train, self.y_train)  
+
+
     def apply_normalization(self):
         scaler = StandardScaler()
         self.X_train = scaler.fit_transform(self.X_train)
         self.X_test = scaler.transform(self.X_test)
 
     def select_model_and_get_f1(self, model):
-        model_dict = {'SVM': SVC(kernel='linear'),
+        model_dict = {'Naive Bayes': GaussianNB(),
+                      'SVM': SVC(kernel='linear'),
                       'MLP': MLPClassifier(hidden_layer_sizes=(50,), activation='relu', solver='adam', max_iter=300),
                       'Tree': DecisionTreeClassifier(),
                       'KNN': KNeighborsClassifier(),
                       'LogReg': LogisticRegression(),
                       'GBC': GradientBoostingClassifier()
                      }
+        
 
         return self.get_f1_score(model_dict[model])
 
